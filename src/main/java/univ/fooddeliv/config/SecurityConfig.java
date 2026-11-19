@@ -71,6 +71,7 @@ public class SecurityConfig {
                         .requestMatchers("/admin", "/admin/**").hasAuthority("ADMIN")
                         .requestMatchers("/profile/**", "/profile").fullyAuthenticated()
                         .requestMatchers("/orders/**").fullyAuthenticated()
+                        .requestMatchers("/api/geo/**").authenticated()
                         .anyRequest().permitAll());
 
         return http.build();

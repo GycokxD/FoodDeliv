@@ -28,6 +28,18 @@ spring:
                 show_sql: false
 
 
+maps:
+    nominatim-url: ${NOMINATIM_URL:https://nominatim.openstreetmap.org}
+    osrm-url: ${OSRM_URL:https://router.project-osrm.org}
+    osrm-profile: driving
+    user-agent: "EduFood-homework/1.0 (+https://github.com/GycokxD/FoodDeliv)"
+    country-codes: kg
+    center-lat: 42.8746
+    center-lng: 74.6122
+    search-radius-deg: 0.25
+    timeout-ms: 5000
+
+
 server:
     port: 8089
 logging:
