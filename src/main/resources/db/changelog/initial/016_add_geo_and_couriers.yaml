@@ -67,7 +67,7 @@ databaseChangeLog:
               UPDATE restaurants SET latitude = 42.8905665, longitude = 74.6177265 WHERE id = 14;
               UPDATE restaurants SET latitude = 42.8560000, longitude = 74.6080000 WHERE id = 15;
               UPDATE restaurants SET latitude = 42.8657663, longitude = 74.6036488 WHERE id = 16;
-              UPDATE orders SET latitude = 42.8754957, longitude = 74.6026276 WHERE latitude IS NULL;
+              UPDATE orders SET latitude = 42.8754957, longitude = 74.6026276 WHERE address = 'г. Бишкек, ул. Чуй, 120';
               INSERT INTO roles (role_name) VALUES ('COURIER');
               UPDATE users
               SET role_id = (SELECT id FROM roles WHERE role_name = 'COURIER')

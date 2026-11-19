@@ -20,6 +20,9 @@ public class CheckoutDto {
     @Pattern(regexp = "^[+0-9][0-9\\s\\-()]{6,19}$", message = "Укажите телефон, например +996555123456")
     private String phone;
 
+    private Double latitude;
+    private Double longitude;
+
     @Size(max = 500, message = "Комментарий слишком длинный")
     private String note;
 

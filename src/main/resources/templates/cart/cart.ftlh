@@ -1,4 +1,5 @@
 <#import "../layout.ftlh" as layout>
+<#import "../maps.ftlh" as maps>
 <@layout.layout title="Корзина" active="cart">
 <div class="container mt-5">
     <h2 class="mb-4"><i class="bi bi-cart3 me-2"></i>Ваша корзина</h2>
@@ -117,9 +118,33 @@
                                        value="${(_csrf.token)!'csrf-token'}"/>
                             </#if>
                             <div class="mb-3">
+                                <label for="geoSearch" class="form-label">Где вы находитесь</label>
+                                <div class="geo-search mb-2">
+                                    <div class="input-group">
+                                        <input class="form-control" id="geoSearch" type="search" autocomplete="off"
+                                               placeholder="Начните вводить улицу и дом, например «Чуй 120»">
+                                        <button class="btn btn-outline-secondary" type="button" id="geoLocate" title="Моё местоположение">
+                                            <i class="bi bi-cursor-fill"></i><span class="d-none d-sm-inline ms-1">Я здесь</span>
+                                        </button>
+                                    </div>
+                                    <div id="geoResults" class="geo-search__results" role="listbox"></div>
+                                </div>
+                                <div id="checkoutMap" class="geo-map"
+                                     data-center-lat="${mapCenterLat?c}" data-center-lng="${mapCenterLng?c}"
+                                     <#if cartRestaurantGeo??>
+                                         data-restaurant-lat="${cartRestaurantGeo.latitude?c}"
+                                         data-restaurant-lng="${cartRestaurantGeo.longitude?c}"
+                                         data-restaurant-name="${cartRestaurantGeo.name}"
+                                     </#if>></div>
+                                <div id="geoHint" class="form-text">Найдите адрес или кликните по карте. Метку можно перетащить.</div>
+                                <input type="hidden" id="latitude" name="latitude" value="<#if (checkout.latitude)??>${checkout.latitude?c}</#if>">
+                                <input type="hidden" id="longitude" name="longitude" value="<#if (checkout.longitude)??>${checkout.longitude?c}</#if>">
+                            </div>
+                            <div class="mb-3">
                                 <label for="address" class="form-label">Адрес доставки</label>
                                 <textarea class="form-control" id="address" name="address" rows="2" required
-                                          placeholder="Город, улица, дом, квартира">${(checkout.address)!''}</textarea>
+                                          placeholder="Улица, дом, подъезд, квартира">${(checkout.address)!''}</textarea>
+                                <div class="form-text">Заполнится по метке на карте. Допишите подъезд и квартиру.</div>
                             </div>
                             <div class="mb-3">
                                 <label for="phone" class="form-label">Телефон</label>
@@ -210,6 +235,203 @@
         </div>
     </#if>
 </div>
+<@maps.assets/>
+<script>
+    (function () {
+        var el = document.getElementById("checkoutMap");
+        var form = document.getElementById("checkoutForm");
+        if (!el || !form || !window.L || !window.EduMap) {
+            return;
+        }
+        var latInput = document.getElementById("latitude");
+        var lngInput = document.getElementById("longitude");
+        var address = document.getElementById("address");
+        var search = document.getElementById("geoSearch");
+        var results = document.getElementById("geoResults");
+        var hint = document.getElementById("geoHint");
+        var locate = document.getElementById("geoLocate");
+
+        var map = EduMap.create(el, {
+            lat: EduMap.number(el.dataset.centerLat),
+            lng: EduMap.number(el.dataset.centerLng)
+        }, 12);
+        var marker = null;
+        var restaurant = null;
+        var reverseId = 0;
+        var searchId = 0;
+        var searchTimer = null;
+
+        var restaurantLat = EduMap.number(el.dataset.restaurantLat);
+        var restaurantLng = EduMap.number(el.dataset.restaurantLng);
+        if (restaurantLat !== null && restaurantLng !== null) {
+            restaurant = L.marker([restaurantLat, restaurantLng], { icon: EduMap.icon("restaurant"), keyboard: false })
+                .addTo(map)
+                .bindTooltip(el.dataset.restaurantName || "Ресторан");
+            map.setView([restaurantLat, restaurantLng], 13);
+        }
+
+        function say(text, isError) {
+            hint.textContent = text;
+            hint.classList.toggle("text-danger", !!isError);
+        }
+
+        function fit() {
+            if (!marker) {
+                return;
+            }
+            if (restaurant) {
+                map.fitBounds(L.latLngBounds([restaurant.getLatLng(), marker.getLatLng()]), { padding: [40, 40], maxZoom: 16 });
+            } else {
+                map.setView(marker.getLatLng(), 16);
+            }
+        }
+
+        function reverse(lat, lng) {
+            var current = ++reverseId;
+            say("Определяем адрес…");
+            EduMap.getJson("/api/geo/reverse?lat=" + lat + "&lng=" + lng)
+                .then(function (hit) {
+                    if (current !== reverseId) {
+                        return;
+                    }
+                    address.value = hit.label;
+                    say("Адрес определён по метке. Допишите подъезд и квартиру.");
+                })
+                .catch(function () {
+                    if (current === reverseId) {
+                        say("Не удалось определить адрес, впишите его вручную. Метка сохранена.", true);
+                    }
+                });
+        }
+
+        function setPoint(lat, lng, label) {
+            latInput.value = lat.toFixed(6);
+            lngInput.value = lng.toFixed(6);
+            if (!marker) {
+                marker = L.marker([lat, lng], { icon: EduMap.icon("home"), draggable: true, autoPan: true }).addTo(map);
+                marker.on("dragend", function () {
+                    var point = marker.getLatLng();
+                    setPoint(point.lat, point.lng);
+                });
+            } else {
+                marker.setLatLng([lat, lng]);
+            }
+            fit();
+            if (label === false) {
+                return;
+            }
+            if (label) {
+                reverseId++;
+                address.value = label;
+                say("Адрес выбран. Допишите подъезд и квартиру.");
+            } else {
+                reverse(lat, lng);
+            }
+        }
+
+        function closeResults() {
+            results.classList.remove("is-open");
+            results.innerHTML = "";
+        }
+
+        function renderResults(hits) {
+            results.innerHTML = "";
+            if (!hits.length) {
+                var empty = document.createElement("div");
+                empty.className = "geo-search__empty";
+                empty.textContent = "Ничего не нашли. Поставьте метку на карте вручную.";
+                results.appendChild(empty);
+            }
+            hits.forEach(function (hit) {
+                var option = document.createElement("button");
+                option.type = "button";
+                option.textContent = hit.label;
+                option.addEventListener("click", function () {
+                    search.value = hit.label;
+                    closeResults();
+                    setPoint(hit.lat, hit.lng, hit.label);
+                });
+                results.appendChild(option);
+            });
+            results.classList.add("is-open");
+        }
+
+        search.addEventListener("input", function () {
+            var query = search.value.trim();
+            clearTimeout(searchTimer);
+            if (query.length < 3) {
+                closeResults();
+                return;
+            }
+            searchTimer = setTimeout(function () {
+                var current = ++searchId;
+                EduMap.getJson("/api/geo/search?q=" + encodeURIComponent(query))
+                    .then(function (hits) {
+                        if (current === searchId) {
+                            renderResults(hits);
+                        }
+                    })
+                    .catch(function () {
+                        if (current === searchId) {
+                            closeResults();
+                            say("Поиск адреса сейчас недоступен. Поставьте метку на карте.", true);
+                        }
+                    });
+            }, 450);
+        });
+        search.addEventListener("keydown", function (event) {
+            if (event.key === "Escape") {
+                closeResults();
+            }
+            if (event.key === "Enter") {
+                event.preventDefault();
+                var first = results.querySelector("button");
+                if (first) {
+                    first.click();
+                }
+            }
+        });
+        document.addEventListener("click", function (event) {
+            if (!event.target.closest(".geo-search")) {
+                closeResults();
+            }
+        });
+
+        map.on("click", function (event) {
+            setPoint(event.latlng.lat, event.latlng.lng);
+        });
+
+        locate.addEventListener("click", function () {
+            if (!navigator.geolocation) {
+                say("Браузер не умеет определять местоположение.", true);
+                return;
+            }
+            say("Определяем ваше местоположение…");
+            navigator.geolocation.getCurrentPosition(function (position) {
+                setPoint(position.coords.latitude, position.coords.longitude);
+            }, function () {
+                say("Не удалось определить местоположение. Разрешите доступ или найдите адрес вручную.", true);
+            }, { enableHighAccuracy: true, timeout: 10000 });
+        });
+
+        form.addEventListener("submit", function (event) {
+            if (latInput.value && lngInput.value) {
+                return;
+            }
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            say("Отметьте адрес доставки на карте: найдите его в поиске или кликните по карте.", true);
+            el.scrollIntoView({ behavior: "smooth", block: "center" });
+        });
+
+        var savedLat = EduMap.number(latInput.value);
+        var savedLng = EduMap.number(lngInput.value);
+        if (savedLat !== null && savedLng !== null) {
+            setPoint(savedLat, savedLng, false);
+            say("Метка из прошлого заказа. Перетащите её, если адрес другой.");
+        }
+    })();
+</script>
 <script>
     (function () {
         var form = document.getElementById("checkoutForm");

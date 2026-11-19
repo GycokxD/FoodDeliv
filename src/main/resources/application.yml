@@ -37,6 +37,7 @@ maps:
     center-lat: 42.8746
     center-lng: 74.6122
     search-radius-deg: 0.25
+    delivery-radius-km: 15
     timeout-ms: 5000
 
 

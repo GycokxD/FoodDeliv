@@ -8,7 +8,10 @@ import univ.fooddeliv.models.User;
 import univ.fooddeliv.service.CartService;
 import univ.fooddeliv.service.DishService;
 import univ.fooddeliv.service.OrderService;
+import univ.fooddeliv.config.MapsProperties;
 import univ.fooddeliv.repository.OrderRepository;
+import univ.fooddeliv.repository.RestaurantRepository;
+import univ.fooddeliv.utils.GeoUtil;
 import univ.fooddeliv.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
@@ -31,6 +34,8 @@ public class CartController {
     private final OrderService orderService;
     private final UserService userService;
     private final OrderRepository orderRepository;
+    private final RestaurantRepository restaurantRepository;
+    private final MapsProperties mapsProperties;
 
     @GetMapping
     public String cart(Model model, HttpServletRequest httpServletRequest, Authentication authentication) {
@@ -41,9 +46,21 @@ public class CartController {
                 User user = (User) model.getAttribute("user");
                 checkout.setPhone(user.getPhone());
                 orderRepository.findFirstByUser_IdAndAddressIsNotNullOrderByCreatedAtDesc(user.getId())
-                        .ifPresent(order -> checkout.setAddress(order.getAddress()));
+                        .ifPresent(order -> {
+                            checkout.setAddress(order.getAddress());
+                            checkout.setLatitude(order.getLatitude());
+                            checkout.setLongitude(order.getLongitude());
+                        });
             }
             model.addAttribute("checkout", checkout);
+        }
+        model.addAttribute("mapCenterLat", mapsProperties.centerLat());
+        model.addAttribute("mapCenterLng", mapsProperties.centerLng());
+        Object restaurantId = model.getAttribute("cartRestaurantId");
+        if (restaurantId instanceof Long id) {
+            restaurantRepository.findById(id)
+                    .filter(restaurant -> GeoUtil.isValid(restaurant.getLatitude(), restaurant.getLongitude()))
+                    .ifPresent(restaurant -> model.addAttribute("cartRestaurantGeo", restaurant));
         }
         return "cart/cart";
     }

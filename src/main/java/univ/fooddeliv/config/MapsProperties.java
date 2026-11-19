@@ -12,6 +12,7 @@ public record MapsProperties(
         double centerLat,
         double centerLng,
         double searchRadiusDeg,
+        double deliveryRadiusKm,
         int timeoutMs
 ) {
 }

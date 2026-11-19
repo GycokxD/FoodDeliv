@@ -45,6 +45,8 @@ public class OrderServiceImpl implements OrderService {
         order.setUser(user);
         order.setTotalPrice(getTotalPrice(dishesFromCookie));
         order.setAddress(checkout.getAddress());
+        order.setLatitude(checkout.getLatitude());
+        order.setLongitude(checkout.getLongitude());
         order.setPhone(checkout.getPhone());
         order.setNote(checkout.getNote());
         order.setStatus(OrderStatus.NEW);

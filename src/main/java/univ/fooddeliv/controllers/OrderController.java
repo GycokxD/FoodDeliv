@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import univ.fooddeliv.config.MapsProperties;
 import univ.fooddeliv.dto.CheckoutDto;
 import univ.fooddeliv.exceptions.PaymentDeclinedException;
 import univ.fooddeliv.dto.DishDto;
@@ -30,6 +31,7 @@ import univ.fooddeliv.service.OrderService;
 import univ.fooddeliv.service.UserService;
 import univ.fooddeliv.service.impl.OrderTrackingService;
 import univ.fooddeliv.utils.DateFormatUtil;
+import univ.fooddeliv.utils.GeoUtil;
 import univ.fooddeliv.utils.PaymentDetails;
 
 import java.util.List;
@@ -44,6 +46,7 @@ public class OrderController {
     private final UserService userService;
     private final CartService cartService;
     private final OrderTrackingService orderTrackingService;
+    private final MapsProperties mapsProperties;
 
     @PostMapping("make-order")
     public String makeOrder(@Valid @ModelAttribute("checkout") CheckoutDto checkout,
@@ -65,6 +68,7 @@ public class OrderController {
             return "redirect:/cart";
         }
         PaymentDetails.validate(checkout, bindingResult);
+        validateDeliveryPoint(checkout, bindingResult);
         if (bindingResult.hasErrors()) {
             checkout.setCardCvv(null);
             String errors = bindingResult.getAllErrors().stream()
@@ -94,6 +98,19 @@ public class OrderController {
         redirectAttributes.addFlashAttribute("message", "Заказ принят. На этой странице видно готовку и курьера");
         redirectAttributes.addFlashAttribute("messageType", "success");
         return "redirect:/orders/" + created.getId();
+    }
+
+    private void validateDeliveryPoint(CheckoutDto checkout, BindingResult bindingResult) {
+        if (!GeoUtil.isValid(checkout.getLatitude(), checkout.getLongitude())) {
+            bindingResult.reject("location", "Отметьте адрес доставки на карте");
+            return;
+        }
+        double km = GeoUtil.distanceMeters(mapsProperties.centerLat(), mapsProperties.centerLng(),
+                checkout.getLatitude(), checkout.getLongitude()) / 1000;
+        if (km > mapsProperties.deliveryRadiusKm()) {
+            bindingResult.reject("location", String.format("Адрес вне зоны доставки: доставляем в пределах %.0f км от центра города",
+                    mapsProperties.deliveryRadiusKm()));
+        }
     }
 
     @GetMapping("/{id}/tracking")
