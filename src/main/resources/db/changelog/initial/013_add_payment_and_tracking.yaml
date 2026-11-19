@@ -1,0 +1,26 @@
+databaseChangeLog:
+  - changeSet:
+      id: 013 add payment and tracking
+      author: denistronin
+      changes:
+        - addColumn:
+            tableName: orders
+            columns:
+              - column:
+                  name: payment_method
+                  type: varchar(30)
+              - column:
+                  name: paid
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: card_last4
+                  type: varchar(4)
+              - column:
+                  name: live_tracking
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false

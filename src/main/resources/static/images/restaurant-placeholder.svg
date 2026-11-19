@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420">
+  <rect width="640" height="420" fill="#fff4e8"/>
+  <rect x="150" y="150" width="340" height="160" rx="18" fill="#ff6b6b"/>
+  <rect x="180" y="110" width="280" height="70" rx="12" fill="#ffa502"/>
+  <rect x="250" y="210" width="140" height="70" fill="#fff9f9"/>
+  <text x="320" y="360" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="28" fill="#2f3542"> 5AB>@0=</text>
+</svg>

@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: 008 insert into roles
+      author: denistronin
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO roles (role_name) VALUES
+              ('CUSTOMER');

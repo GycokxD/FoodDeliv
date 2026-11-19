@@ -1,0 +1,25 @@
+databaseChangeLog:
+  - changeSet:
+      id: 006 insert into restaurants
+      author: denistronin
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO restaurants (id, name, address, image, created_at) VALUES
+              (1, 'Pizza House', 'ул. Советская, 12, Бишкек', 'images/restaurants/pizza-house.jpg', NOW()),
+              (2, 'Sushi King', 'пр. Манаса, 34, Бишкек', 'images/restaurants/sushi-king.jpg', NOW()),
+              (3, 'Burger Spot', 'ул. Исанова, 45, Бишкек', 'images/restaurants/burger-spot.jpg', NOW()),
+              (4, 'Tandoori Place', 'ул. Киевская, 23, Бишкек', 'images/restaurants/tandoori-place.jpg', NOW()),
+              (5, 'Pasta Roma', 'ул. Панфилова, 89, Бишкек', 'images/restaurants/pasta-roma.jpg', NOW()),
+              (6, 'Green Vegan', 'ул. Московская, 77, Бишкек', 'images/restaurants/green-vegan.jpg', NOW()),
+              (7, 'BBQ Heaven', 'ул. Ленина, 100, Бишкек', 'images/restaurants/bbq-heaven.jpg', NOW()),
+              (8, 'Seafood Bar', 'ул. Фрунзе, 10, Бишкек', 'images/restaurants/seafood-bar.jpg', NOW()),
+              (9, 'Wok Master', 'ул. Токтогула, 55, Бишкек', 'images/restaurants/wok-master.jpg', NOW()),
+              (10, 'Café de Paris', 'ул. Боконбаева, 18, Бишкек', 'images/restaurants/cafe-de-paris.jpg', NOW()),
+              (11, 'Шаурма у Азата', 'пр. Чуй, 148, Бишкек', 'images/restaurants/shawarma-azat.jpg', NOW()),
+              (12, 'Пельменная Сибирь', 'ул. Абдрахманова, 63, Бишкек', 'images/restaurants/pelmennaya.jpg', NOW()),
+              (13, 'Грузинский двор', 'ул. Тыныстанова, 19, Бишкек', 'images/restaurants/georgian-dvor.jpg', NOW()),
+              (14, 'Рамен Ямада', 'ул. Ибраимова, 52, Бишкек', 'images/restaurants/ramen-yamada.jpg', NOW()),
+              (15, 'Тако Локо', 'ул. Горького, 31, Бишкек', 'images/restaurants/taco-loco.jpg', NOW()),
+              (16, 'Кофейня Зерно', 'ул. Раззакова, 88, Бишкек', 'images/restaurants/zerno.jpg', NOW());
+              ALTER TABLE restaurants ALTER COLUMN id RESTART WITH 17;

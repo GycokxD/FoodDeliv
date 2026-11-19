@@ -1,0 +1,25 @@
+databaseChangeLog:
+  - changeSet:
+      id: 015 add payment receipt
+      author: denistronin
+      changes:
+        - addColumn:
+            tableName: orders
+            columns:
+              - column:
+                  name: payment_status
+                  type: varchar(20)
+                  defaultValue: UNPAID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: payment_ref
+                  type: varchar(40)
+              - column:
+                  name: card_brand
+                  type: varchar(20)
+              - column:
+                  name: paid_at
+                  type: timestamp
+        - sql:
+            sql: UPDATE orders SET payment_status = 'PAID' WHERE paid = TRUE

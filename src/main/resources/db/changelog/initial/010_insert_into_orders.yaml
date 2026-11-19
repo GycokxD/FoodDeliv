@@ -1,0 +1,26 @@
+databaseChangeLog:
+  - changeSet:
+      id: 010 insert into orders
+      author: denistronin
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO orders (user_id, created_at, total_price) VALUES
+              ((SELECT id FROM users WHERE email = 'user1@mail.com'), '2026-09-02 13:45:00', 1420),
+              ((SELECT id FROM users WHERE email = 'admin@mail.com'), '2026-09-03 14:10:00', 1160),
+              ((SELECT id FROM users WHERE email = 'user2@mail.com'), '2026-09-04 18:20:00', 960),
+              ((SELECT id FROM users WHERE email = 'admin@mail.com'), '2026-09-05 12:30:00', 940),
+              ((SELECT id FROM users WHERE email = 'user2@mail.com'), '2026-09-06 19:05:00', 800),
+              ((SELECT id FROM users WHERE email = 'courier@mail.com'), '2026-09-08 13:30:00', 880),
+              ((SELECT id FROM users WHERE email = 'admin@mail.com'), '2026-09-09 20:15:00', 940),
+              ((SELECT id FROM users WHERE email = 'user1@mail.com'), '2026-09-11 17:40:00', 700),
+              ((SELECT id FROM users WHERE email = 'user2@mail.com'), '2026-09-12 09:20:00', 540),
+              ((SELECT id FROM users WHERE email = 'courier@mail.com'), '2026-09-14 21:10:00', 660),
+              ((SELECT id FROM users WHERE email = 'aigerim@mail.com'), '2026-09-16 13:00:00', 580),
+              ((SELECT id FROM users WHERE email = 'nurbek@mail.com'), '2026-09-18 19:30:00', 870),
+              ((SELECT id FROM users WHERE email = 'marina@mail.com'), '2026-09-20 18:45:00', 810),
+              ((SELECT id FROM users WHERE email = 'timur@mail.com'), '2026-09-22 20:05:00', 900),
+              ((SELECT id FROM users WHERE email = 'alina@mail.com'), '2026-09-25 11:15:00', 520),
+              ((SELECT id FROM users WHERE email = 'daniyar@mail.com'), '2026-09-28 14:50:00', 640),
+              ((SELECT id FROM users WHERE email = 'user1@mail.com'), '2026-10-02 19:10:00', 1330),
+              ((SELECT id FROM users WHERE email = 'aigerim@mail.com'), '2026-10-08 20:40:00', 1100);

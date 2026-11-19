@@ -1,0 +1,45 @@
+databaseChangeLog:
+  - changeSet:
+      id: 004 create dishes table
+      author: denistronin
+      changes:
+        - createTable:
+            tableName: dishes
+            columns:
+              - column:
+                  name: id
+                  type: long
+                  autoIncrement: true
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+              - column:
+                  name: name
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: text
+              - column:
+                  name: price
+                  type: double
+                  constraints:
+                    nullable: false
+              - column:
+                  name: image
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: restaurant_id
+                  type: long
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: dishes
+            baseColumnNames: restaurant_id
+            constraintName: fk_dish_restaurant
+            referencedTableName: restaurants
+            referencedColumnNames: id
+            onDelete: cascade

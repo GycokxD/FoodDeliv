@@ -1,0 +1,42 @@
+databaseChangeLog:
+  - changeSet:
+      id: 012 add checkout fields and user phone
+      author: denistronin
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: phone
+                  type: varchar(30)
+        - addColumn:
+            tableName: orders
+            columns:
+              - column:
+                  name: address
+                  type: varchar(500)
+              - column:
+                  name: phone
+                  type: varchar(30)
+              - column:
+                  name: note
+                  type: varchar(500)
+              - column:
+                  name: status
+                  type: varchar(32)
+                  defaultValue: NEW
+                  constraints:
+                    nullable: false
+        - sql:
+            sql: |
+              UPDATE orders
+              SET address = 'г. Бишкек, ул. Чуй, 120',
+                  phone = '+996700123456',
+                  status = CASE MOD(id, 5)
+                      WHEN 0 THEN 'CANCELLED'
+                      WHEN 1 THEN 'DELIVERED'
+                      WHEN 2 THEN 'ON_THE_WAY'
+                      WHEN 3 THEN 'COOKING'
+                      ELSE 'NEW'
+                  END
+              WHERE address IS NULL;

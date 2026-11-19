@@ -1,0 +1,49 @@
+databaseChangeLog:
+  - changeSet:
+      id: 006_create_table_order_items
+      author: denistronin
+      changes:
+        - createTable:
+            tableName: order_items
+            columns:
+              - column:
+                  name: id
+                  type: long
+                  autoIncrement: true
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+              - column:
+                  name: order_id
+                  type: long
+                  constraints:
+                    nullable: false
+              - column:
+                  name: dish_id
+                  type: long
+                  constraints:
+                    nullable: false
+              - column:
+                  name: quantity
+                  type: int
+                  constraints:
+                    nullable: false
+              - column:
+                  name: price
+                  type: double
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: order_items
+            baseColumnNames: order_id
+            constraintName: fk_order_items_order
+            referencedTableName: orders
+            referencedColumnNames: id
+            onDelete: cascade
+        - addForeignKeyConstraint:
+            baseTableName: order_items
+            baseColumnNames: dish_id
+            constraintName: fk_order_items_dish
+            referencedTableName: dishes
+            referencedColumnNames: id
+            onDelete: cascade

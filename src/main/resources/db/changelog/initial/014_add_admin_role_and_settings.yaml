@@ -1,0 +1,45 @@
+databaseChangeLog:
+  - changeSet:
+      id: 014 add admin role and settings
+      author: denistronin
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO roles (role_name) VALUES ('ADMIN');
+              UPDATE users
+              SET role_id = (SELECT id FROM roles WHERE role_name = 'ADMIN')
+              WHERE email = 'admin@mail.com';
+        - createTable:
+            tableName: app_settings
+            columns:
+              - column:
+                  name: id
+                  type: long
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+              - column:
+                  name: accepted_seconds
+                  type: int
+                  constraints:
+                    nullable: false
+              - column:
+                  name: cooking_seconds
+                  type: int
+                  constraints:
+                    nullable: false
+              - column:
+                  name: delivery_seconds
+                  type: int
+                  constraints:
+                    nullable: false
+              - column:
+                  name: support_phone
+                  type: varchar(30)
+              - column:
+                  name: city
+                  type: varchar(80)
+        - sql:
+            sql: |
+              INSERT INTO app_settings (id, accepted_seconds, cooking_seconds, delivery_seconds, support_phone, city)
+              VALUES (1, 20, 30, 60, '+996700000000', 'Бишкек');

@@ -1,0 +1,18 @@
+databaseChangeLog:
+  - changeSet:
+      id: 009 insert into users
+      author: denistronin
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO users (email, password, enabled, name, created_at, role_id) VALUES
+              ('user1@mail.com', '$2a$10$/wqg6BfDu5aiRel.qAmjb.EmF4uslJkYEbiIlhOyjSzxyNjnCxjF2', true, 'Айбек Жумалиев', '2026-01-10 12:00:00', 1),
+              ('admin@mail.com', '$2a$10$/wqg6BfDu5aiRel.qAmjb.EmF4uslJkYEbiIlhOyjSzxyNjnCxjF2', true, 'Администратор', '2026-01-12 08:30:00', 1),
+              ('user2@mail.com', '$2a$10$/wqg6BfDu5aiRel.qAmjb.EmF4uslJkYEbiIlhOyjSzxyNjnCxjF2', true, 'Елена Пак', '2026-01-14 09:15:00', 1),
+              ('courier@mail.com', '$2a$10$/wqg6BfDu5aiRel.qAmjb.EmF4uslJkYEbiIlhOyjSzxyNjnCxjF2', true, 'Бакыт Курманов', '2026-01-20 10:00:00', 1),
+              ('aigerim@mail.com', '$2a$10$/wqg6BfDu5aiRel.qAmjb.EmF4uslJkYEbiIlhOyjSzxyNjnCxjF2', true, 'Айгерим Токтосунова', '2026-02-02 11:20:00', 1),
+              ('nurbek@mail.com', '$2a$10$/wqg6BfDu5aiRel.qAmjb.EmF4uslJkYEbiIlhOyjSzxyNjnCxjF2', true, 'Нурбек Асанов', '2026-02-11 16:40:00', 1),
+              ('marina@mail.com', '$2a$10$/wqg6BfDu5aiRel.qAmjb.EmF4uslJkYEbiIlhOyjSzxyNjnCxjF2', true, 'Марина Ким', '2026-03-03 13:05:00', 1),
+              ('timur@mail.com', '$2a$10$/wqg6BfDu5aiRel.qAmjb.EmF4uslJkYEbiIlhOyjSzxyNjnCxjF2', true, 'Тимур Беков', '2026-03-18 18:25:00', 1),
+              ('alina@mail.com', '$2a$10$/wqg6BfDu5aiRel.qAmjb.EmF4uslJkYEbiIlhOyjSzxyNjnCxjF2', true, 'Алина Садыкова', '2026-04-07 10:10:00', 1),
+              ('daniyar@mail.com', '$2a$10$/wqg6BfDu5aiRel.qAmjb.EmF4uslJkYEbiIlhOyjSzxyNjnCxjF2', true, 'Данияр Усенов', '2026-05-15 19:45:00', 1);
