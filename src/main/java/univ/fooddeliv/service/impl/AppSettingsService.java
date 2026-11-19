@@ -47,9 +47,14 @@ public class AppSettingsService {
         return positive(get().getDeliverySeconds(), 60);
     }
 
+    public boolean demoCouriers() {
+        return !Boolean.FALSE.equals(get().getDemoCouriers());
+    }
+
     private AppSettings defaults() {
         AppSettings settings = new AppSettings();
         settings.setId(SETTINGS_ID);
+        settings.setDemoCouriers(true);
         settings.setAcceptedSeconds(20);
         settings.setCookingSeconds(30);
         settings.setDeliverySeconds(60);

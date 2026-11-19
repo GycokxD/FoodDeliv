@@ -21,6 +21,10 @@ public class Restaurant {
     private String address;
     @Column(name = "image")
     private String image;
+    @Column(name = "latitude")
+    private Double latitude;
+    @Column(name = "longitude")
+    private Double longitude;
     @CreationTimestamp
     @Column(name = "created_at")
     private LocalDateTime createdAt;

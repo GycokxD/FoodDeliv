@@ -53,6 +53,19 @@ public class Order {
     private LocalDateTime paidAt;
     @Column(name = "live_tracking", nullable = false)
     private Boolean liveTracking = false;
+    @Column(name = "latitude")
+    private Double latitude;
+    @Column(name = "longitude")
+    private Double longitude;
+    @ManyToOne
+    @JoinColumn(name = "courier_id")
+    private User courier;
+    @Column(name = "courier_latitude")
+    private Double courierLatitude;
+    @Column(name = "courier_longitude")
+    private Double courierLongitude;
+    @Column(name = "courier_located_at")
+    private LocalDateTime courierLocatedAt;
 
     @OneToMany(mappedBy = "order")
     private List<OrderItem> items;

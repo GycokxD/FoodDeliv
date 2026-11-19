@@ -1,0 +1,74 @@
+databaseChangeLog:
+  - changeSet:
+      id: 016 add geo and couriers
+      author: denistronin
+      changes:
+        - addColumn:
+            tableName: restaurants
+            columns:
+              - column:
+                  name: latitude
+                  type: double
+              - column:
+                  name: longitude
+                  type: double
+        - addColumn:
+            tableName: orders
+            columns:
+              - column:
+                  name: latitude
+                  type: double
+              - column:
+                  name: longitude
+                  type: double
+              - column:
+                  name: courier_id
+                  type: long
+              - column:
+                  name: courier_latitude
+                  type: double
+              - column:
+                  name: courier_longitude
+                  type: double
+              - column:
+                  name: courier_located_at
+                  type: timestamp
+        - addForeignKeyConstraint:
+            baseTableName: orders
+            baseColumnNames: courier_id
+            constraintName: fk_orders_courier
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: SET NULL
+        - addColumn:
+            tableName: app_settings
+            columns:
+              - column:
+                  name: demo_couriers
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+        - sql:
+            sql: |
+              UPDATE restaurants SET latitude = 42.8124554, longitude = 74.5943441 WHERE id = 1;
+              UPDATE restaurants SET latitude = 42.8745000, longitude = 74.5880000 WHERE id = 2;
+              UPDATE restaurants SET latitude = 42.8942650, longitude = 74.5930831 WHERE id = 3;
+              UPDATE restaurants SET latitude = 42.8761613, longitude = 74.5700126 WHERE id = 4;
+              UPDATE restaurants SET latitude = 42.8463947, longitude = 74.5994066 WHERE id = 5;
+              UPDATE restaurants SET latitude = 42.8687448, longitude = 74.6247541 WHERE id = 6;
+              UPDATE restaurants SET latitude = 42.8613754, longitude = 74.5842590 WHERE id = 7;
+              UPDATE restaurants SET latitude = 42.8786403, longitude = 74.6497138 WHERE id = 8;
+              UPDATE restaurants SET latitude = 42.8723565, longitude = 74.5979695 WHERE id = 9;
+              UPDATE restaurants SET latitude = 42.8676499, longitude = 74.5978778 WHERE id = 10;
+              UPDATE restaurants SET latitude = 42.8778736, longitude = 74.5613156 WHERE id = 11;
+              UPDATE restaurants SET latitude = 42.8790000, longitude = 74.6110000 WHERE id = 12;
+              UPDATE restaurants SET latitude = 42.8412142, longitude = 74.6039651 WHERE id = 13;
+              UPDATE restaurants SET latitude = 42.8905665, longitude = 74.6177265 WHERE id = 14;
+              UPDATE restaurants SET latitude = 42.8560000, longitude = 74.6080000 WHERE id = 15;
+              UPDATE restaurants SET latitude = 42.8657663, longitude = 74.6036488 WHERE id = 16;
+              UPDATE orders SET latitude = 42.8754957, longitude = 74.6026276 WHERE latitude IS NULL;
+              INSERT INTO roles (role_name) VALUES ('COURIER');
+              UPDATE users
+              SET role_id = (SELECT id FROM roles WHERE role_name = 'COURIER')
+              WHERE email = 'courier@mail.com';

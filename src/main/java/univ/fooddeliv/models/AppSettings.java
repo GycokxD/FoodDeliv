@@ -29,4 +29,7 @@ public class AppSettings {
 
     @Column(name = "city")
     private String city;
+
+    @Column(name = "demo_couriers", nullable = false)
+    private Boolean demoCouriers = true;
 }

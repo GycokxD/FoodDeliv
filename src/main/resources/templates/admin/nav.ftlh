@@ -12,6 +12,7 @@
 <#function roleLabel name>
     <#if name == "ADMIN"><#return "Администратор"></#if>
     <#if name == "CUSTOMER"><#return "Покупатель"></#if>
+    <#if name == "COURIER"><#return "Курьер"></#if>
     <#return name!"">
 </#function>
 
