@@ -59,6 +59,12 @@ public class GlobalModelAdvice {
         return user != null && user.getRole() != null && "ADMIN".equals(user.getRole().getRole());
     }
 
+    @ModelAttribute("isCourier")
+    public boolean isCourier() {
+        User user = currentUser();
+        return user != null && user.getRole() != null && "COURIER".equals(user.getRole().getRole());
+    }
+
     @ModelAttribute("appSettings")
     public Object appSettings() {
         return appSettingsService.get();

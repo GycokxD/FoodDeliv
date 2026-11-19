@@ -16,15 +16,23 @@ public class LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
     public void onAuthenticationSuccess(HttpServletRequest request,
                                         HttpServletResponse response,
                                         Authentication authentication) throws IOException, ServletException {
-        boolean admin = authentication.getAuthorities().stream()
-                .anyMatch(authority -> "ADMIN".equals(authority.getAuthority()));
+        boolean admin = hasAuthority(authentication, "ADMIN");
+        boolean courier = hasAuthority(authentication, "COURIER");
         String next = safeNext(request.getParameter("next"));
         if (next != null && next.startsWith("/admin") && !admin) {
             next = null;
         }
-        String target = next != null ? next : (admin ? "/admin" : "/");
+        if (next != null && next.startsWith("/courier") && !courier) {
+            next = null;
+        }
+        String target = next != null ? next : (admin ? "/admin" : courier ? "/courier" : "/");
         getRedirectStrategy().sendRedirect(request, response, target);
         clearAuthenticationAttributes(request);
+    }
+
+    private static boolean hasAuthority(Authentication authentication, String name) {
+        return authentication.getAuthorities().stream()
+                .anyMatch(authority -> name.equals(authority.getAuthority()));
     }
 
     public static String safeNext(String next) {

@@ -1067,6 +1067,13 @@
                             </a>
                         </li>
                     </#if>
+                    <#if isCourier!false>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/courier">
+                                <i class="bi bi-bicycle me-1"></i> Доставки
+                            </a>
+                        </li>
+                    </#if>
                     <#if activeOrder??>
                         <li class="nav-item">
                             <a class="nav-link order-pill" href="/orders/${activeOrder.id}">
@@ -1095,6 +1102,9 @@
                                                     <ul class="dropdown-menu dropdown-menu-end">
                                                         <#if isAdmin!false>
                                                             <li><a class="dropdown-item" href="/admin"><i class="bi bi-speedometer2 me-2"></i>Панель</a></li>
+                                                        </#if>
+                                                        <#if isCourier!false>
+                                                            <li><a class="dropdown-item" href="/courier"><i class="bi bi-bicycle me-2"></i>Доставки</a></li>
                                                         </#if>
                                                         <li><a class="dropdown-item" href="/profile"><i class="bi bi-person me-2"></i>Профиль</a></li>
                                                         <li><hr class="dropdown-divider"></li>

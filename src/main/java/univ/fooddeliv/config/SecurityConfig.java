@@ -69,6 +69,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorizeRequests -> authorizeRequests
                         .requestMatchers("/static/**", "/uploads/**", "/error", "/access-denied").permitAll()
                         .requestMatchers("/admin", "/admin/**").hasAuthority("ADMIN")
+                        .requestMatchers("/courier", "/courier/**", "/api/courier/**").hasAuthority("COURIER")
                         .requestMatchers("/profile/**", "/profile").fullyAuthenticated()
                         .requestMatchers("/orders/**").fullyAuthenticated()
                         .requestMatchers("/api/geo/**").authenticated()

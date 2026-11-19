@@ -64,7 +64,10 @@ public class OrderTrackingService {
             return;
         }
         OrderStatus next = statusFor(elapsedSeconds(order));
-        if (current != next) {
+        if (waitsForRealCourier(order) && next.ordinal() > OrderStatus.COOKING.ordinal()) {
+            next = OrderStatus.COOKING;
+        }
+        if (next.ordinal() > current.ordinal()) {
             order.setStatus(next);
             if (next == OrderStatus.DELIVERED) {
                 paymentService.captureOnDelivery(order);
@@ -124,6 +127,10 @@ public class OrderTrackingService {
                 .showMap(!cancelled)
                 .steps(steps(status))
                 .build();
+    }
+
+    private boolean waitsForRealCourier(Order order) {
+        return order.getCourier() != null || !appSettingsService.demoCouriers();
     }
 
     private boolean canView(Order order, String email) {
