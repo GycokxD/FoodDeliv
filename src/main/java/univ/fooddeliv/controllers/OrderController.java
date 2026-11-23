@@ -11,12 +11,14 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import univ.fooddeliv.config.MapsProperties;
 import univ.fooddeliv.dto.CheckoutDto;
@@ -30,6 +32,7 @@ import univ.fooddeliv.service.DishService;
 import univ.fooddeliv.service.OrderService;
 import univ.fooddeliv.service.UserService;
 import univ.fooddeliv.service.impl.OrderTrackingService;
+import univ.fooddeliv.service.impl.TrackingHub;
 import univ.fooddeliv.utils.DateFormatUtil;
 import univ.fooddeliv.utils.GeoUtil;
 import univ.fooddeliv.utils.PaymentDetails;
@@ -46,6 +49,7 @@ public class OrderController {
     private final UserService userService;
     private final CartService cartService;
     private final OrderTrackingService orderTrackingService;
+    private final TrackingHub trackingHub;
     private final MapsProperties mapsProperties;
 
     @PostMapping("make-order")
@@ -117,6 +121,21 @@ public class OrderController {
     @ResponseBody
     public OrderTrackingDto tracking(@PathVariable Long id, @AuthenticationPrincipal UserDetails userDetails) {
         return orderTrackingService.trackForUser(id, userDetails.getUsername());
+    }
+
+    @GetMapping(path = "/{id}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter stream(@PathVariable Long id, @AuthenticationPrincipal UserDetails userDetails) {
+        OrderTrackingDto tracking = orderTrackingService.trackForUser(id, userDetails.getUsername());
+        SseEmitter emitter = trackingHub.subscribe(id);
+        try {
+            emitter.send(SseEmitter.event().name("tracking").data(tracking));
+            if (tracking.isFinished()) {
+                emitter.complete();
+            }
+        } catch (Exception e) {
+            emitter.completeWithError(e);
+        }
+        return emitter;
     }
 
     @GetMapping("/{id}")

@@ -5,35 +5,50 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import univ.fooddeliv.config.MapsProperties;
 import univ.fooddeliv.dto.OrderTrackingDto;
+import univ.fooddeliv.dto.RouteDto;
 import univ.fooddeliv.dto.TrackingStepDto;
 import univ.fooddeliv.models.Order;
-import univ.fooddeliv.models.OrderItem;
 import univ.fooddeliv.models.OrderStatus;
+import univ.fooddeliv.models.Restaurant;
+import univ.fooddeliv.models.User;
 import univ.fooddeliv.repository.OrderRepository;
 import univ.fooddeliv.repository.UserRepository;
+import univ.fooddeliv.utils.GeoUtil;
+import univ.fooddeliv.utils.OrderUtil;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class OrderTrackingService {
-    private static final String[] COURIERS = {"Азамат", "Нурлан", "Элина", "Бекзат"};
+    private static final String[] DEMO_COURIERS = {"Азамат", "Нурлан", "Элина", "Бекзат"};
 
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
     private final AppSettingsService appSettingsService;
     private final PaymentService paymentService;
+    private final RoutingService routingService;
+    private final MapsProperties mapsProperties;
+    private final TrackingHub trackingHub;
 
     @Scheduled(fixedDelay = 3000)
     @Transactional
     public void advanceLiveOrders() {
         List<Order> live = orderRepository.findByLiveTrackingTrueAndStatusIn(
                 List.of(OrderStatus.NEW, OrderStatus.COOKING, OrderStatus.ON_THE_WAY));
-        live.forEach(this::advance);
+        for (Order order : live) {
+            OrderStatus before = order.getStatus();
+            advance(order);
+            if (before != order.getStatus() || trackingHub.hasSubscribers(order.getId())) {
+                trackingHub.publish(order.getId(), toDto(order));
+            }
+        }
     }
 
     @Transactional
@@ -53,6 +68,11 @@ public class OrderTrackingService {
         }
         advance(order);
         return toDto(order);
+    }
+
+    @Transactional(readOnly = true)
+    public void publish(Long orderId) {
+        orderRepository.findById(orderId).ifPresent(order -> trackingHub.publish(orderId, toDto(order)));
     }
 
     private void advance(Order order) {
@@ -82,51 +102,140 @@ public class OrderTrackingService {
         long elapsed = elapsedSeconds(order);
         boolean cancelled = status == OrderStatus.CANCELLED;
         boolean delivered = status == OrderStatus.DELIVERED;
-        String restaurantName = "Ресторан";
-        long restaurantSeed = order.getId() == null ? 1 : order.getId();
-        if (order.getItems() != null) {
-            for (OrderItem item : order.getItems()) {
-                if (item.getDish() != null && item.getDish().getRestaurant() != null) {
-                    restaurantName = item.getDish().getRestaurant().getName();
-                    restaurantSeed = item.getDish().getRestaurant().getId();
-                    break;
-                }
-            }
+        boolean waitingForCourier = waitsForRealCourier(order) && order.getCourier() == null
+                && (status == OrderStatus.NEW || status == OrderStatus.COOKING);
+
+        Optional<Restaurant> restaurant = OrderUtil.restaurantOf(order);
+        Optional<double[]> restaurantPoint = OrderUtil.restaurantPoint(order);
+        Optional<double[]> destinationPoint = OrderUtil.destinationPoint(order);
+
+        List<double[]> route = List.of();
+        Double routeDurationSeconds = null;
+        if (restaurantPoint.isPresent() && destinationPoint.isPresent()) {
+            RouteDto routed = routingService.route(
+                    restaurantPoint.get()[0], restaurantPoint.get()[1],
+                    destinationPoint.get()[0], destinationPoint.get()[1]);
+            route = routed.points();
+            routeDurationSeconds = routed.durationSeconds();
         }
-        double restaurantX = 16 + unit(restaurantSeed * 3) * 22;
-        double restaurantY = 22 + unit(restaurantSeed * 7) * 52;
-        int addressSeed = order.getAddress() == null ? 17 : order.getAddress().hashCode();
-        double destinationX = 62 + unit(addressSeed) * 22;
-        double destinationY = 18 + unit(addressSeed * 13L) * 58;
-        double travel = travelProgress(status, elapsed);
-        double courierX = restaurantX + (destinationX - restaurantX) * travel;
-        double courierY = restaurantY + (destinationY - restaurantY) * travel;
-        int courierIndex = (int) (Math.floorMod(order.getId() == null ? 0 : order.getId(), COURIERS.length));
+
+        double[] courierPoint = resolveCourierPoint(order, status, elapsed, restaurantPoint, destinationPoint, route);
+        String eta = eta(order, status, elapsed, courierPoint, destinationPoint, routeDurationSeconds);
 
         return OrderTrackingDto.builder()
                 .status(status.name())
                 .statusLabel(status.getLabel())
                 .badge(status.getBadge())
-                .message(message(status))
-                .eta(eta(status, elapsed))
-                .progress(progress(status, elapsed))
-                .live(Boolean.TRUE.equals(order.getLiveTracking()))
+                .message(message(status, waitingForCourier, order.getCourier() != null))
+                .eta(eta)
+                .progress(progress(status, elapsed, waitingForCourier))
+                .live(Boolean.TRUE.equals(order.getLiveTracking()) && !delivered && !cancelled)
                 .finished(delivered || cancelled)
                 .canCancel(status == OrderStatus.NEW)
                 .paid(Boolean.TRUE.equals(order.getPaid()))
                 .paymentState(paymentState(order))
                 .paymentBadge(paymentBadge(order))
-                .courierName(COURIERS[courierIndex])
-                .restaurantName(restaurantName)
-                .restaurantX(round(restaurantX))
-                .restaurantY(round(restaurantY))
-                .destinationX(round(destinationX))
-                .destinationY(round(destinationY))
-                .courierX(round(courierX))
-                .courierY(round(courierY))
-                .showMap(!cancelled)
+                .courierName(courierName(order))
+                .restaurantName(restaurant.map(Restaurant::getName).orElse("Ресторан"))
+                .restaurantLat(restaurantPoint.map(p -> p[0]).orElse(null))
+                .restaurantLng(restaurantPoint.map(p -> p[1]).orElse(null))
+                .destinationLat(destinationPoint.map(p -> p[0]).orElse(null))
+                .destinationLng(destinationPoint.map(p -> p[1]).orElse(null))
+                .courierLat(courierPoint == null ? null : courierPoint[0])
+                .courierLng(courierPoint == null ? null : courierPoint[1])
+                .route(route)
+                .centerLat(mapsProperties.centerLat())
+                .centerLng(mapsProperties.centerLng())
+                .showMap(!cancelled && (restaurantPoint.isPresent() || destinationPoint.isPresent()))
+                .waitingForCourier(waitingForCourier)
                 .steps(steps(status))
                 .build();
+    }
+
+    private double[] resolveCourierPoint(Order order,
+                                         OrderStatus status,
+                                         long elapsed,
+                                         Optional<double[]> restaurantPoint,
+                                         Optional<double[]> destinationPoint,
+                                         List<double[]> route) {
+        if (status == OrderStatus.CANCELLED) {
+            return null;
+        }
+        if (order.getCourier() != null) {
+            return OrderUtil.courierPoint(order)
+                    .or(() -> restaurantPoint)
+                    .or(() -> destinationPoint)
+                    .orElse(null);
+        }
+        if (!appSettingsService.demoCouriers()) {
+            return restaurantPoint.orElse(null);
+        }
+        if (status == OrderStatus.DELIVERED) {
+            return destinationPoint.or(() -> restaurantPoint).orElse(null);
+        }
+        if (status != OrderStatus.ON_THE_WAY) {
+            return restaurantPoint.orElse(null);
+        }
+        double travel = travelProgress(status, elapsed);
+        if (!route.isEmpty()) {
+            return GeoUtil.pointAlong(route, travel);
+        }
+        if (restaurantPoint.isPresent() && destinationPoint.isPresent()) {
+            double[] from = restaurantPoint.get();
+            double[] to = destinationPoint.get();
+            return new double[]{
+                    from[0] + (to[0] - from[0]) * travel,
+                    from[1] + (to[1] - from[1]) * travel
+            };
+        }
+        return restaurantPoint.or(() -> destinationPoint).orElse(null);
+    }
+
+    private String eta(Order order,
+                       OrderStatus status,
+                       long elapsed,
+                       double[] courierPoint,
+                       Optional<double[]> destinationPoint,
+                       Double routeDurationSeconds) {
+        if (status == OrderStatus.DELIVERED) {
+            return "Заказ у вас";
+        }
+        if (status == OrderStatus.CANCELLED) {
+            return "Доставка остановлена";
+        }
+        if (waitsForRealCourier(order) && order.getCourier() == null) {
+            return "ждём курьера";
+        }
+        if (order.getCourier() != null && status == OrderStatus.ON_THE_WAY
+                && courierPoint != null && destinationPoint.isPresent()) {
+            RouteDto remaining = routingService.route(
+                    courierPoint[0], courierPoint[1],
+                    destinationPoint.get()[0], destinationPoint.get()[1]);
+            return formatMinutes(remaining.durationSeconds());
+        }
+        if (!waitsForRealCourier(order) && status == OrderStatus.ON_THE_WAY && routeDurationSeconds != null) {
+            double left = routeDurationSeconds * (1 - travelProgress(status, elapsed));
+            return formatMinutes(left);
+        }
+        long left = Math.max(0, deliveredAtSeconds() - elapsed);
+        return formatMinutes(left);
+    }
+
+    private static String formatMinutes(double seconds) {
+        if (seconds < 60) {
+            return "меньше минуты";
+        }
+        long minutes = Math.round(seconds / 60.0);
+        return "около " + minutes + " мин";
+    }
+
+    private String courierName(Order order) {
+        User courier = order.getCourier();
+        if (courier != null && courier.getName() != null && !courier.getName().isBlank()) {
+            return courier.getName();
+        }
+        int index = (int) Math.floorMod(order.getId() == null ? 0 : order.getId(), DEMO_COURIERS.length);
+        return DEMO_COURIERS[index];
     }
 
     private boolean waitsForRealCourier(Order order) {
@@ -189,35 +298,29 @@ public class OrderTrackingService {
         return Math.min(1, Math.max(0, (elapsed - cookingUntilSeconds()) / span));
     }
 
-    private int progress(OrderStatus status, long elapsed) {
+    private int progress(OrderStatus status, long elapsed, boolean waitingForCourier) {
         if (status == OrderStatus.CANCELLED) {
             return 0;
         }
         if (status == OrderStatus.DELIVERED) {
             return 100;
         }
-        return (int) Math.min(99, elapsed * 100 / deliveredAtSeconds());
+        if (waitingForCourier) {
+            int cookingShare = cookingUntilSeconds() * 100 / deliveredAtSeconds();
+            return Math.min(cookingShare, (int) Math.min(99, elapsed * 100L / deliveredAtSeconds()));
+        }
+        return (int) Math.min(99, elapsed * 100L / deliveredAtSeconds());
     }
 
-    private String eta(OrderStatus status, long elapsed) {
-        if (status == OrderStatus.DELIVERED) {
-            return "Заказ у вас";
+    private static String message(OrderStatus status, boolean waitingForCourier, boolean hasCourier) {
+        if (waitingForCourier) {
+            return "Заказ готовят. Ищем курьера для доставки";
         }
-        if (status == OrderStatus.CANCELLED) {
-            return "Доставка остановлена";
-        }
-        long left = Math.max(0, deliveredAtSeconds() - elapsed);
-        if (left < 60) {
-            return "меньше минуты";
-        }
-        long minutes = (left + 59) / 60;
-        return "около " + minutes + " мин";
-    }
-
-    private static String message(OrderStatus status) {
         return switch (status) {
             case NEW -> "Ресторан принял заказ и скоро начнёт готовку";
-            case COOKING -> "Кухня готовит блюда, курьер ждёт у ресторана";
+            case COOKING -> hasCourier
+                    ? "Кухня готовит блюда, курьер едет или ждёт у ресторана"
+                    : "Кухня готовит блюда, курьер ждёт у ресторана";
             case ON_THE_WAY -> "Курьер забрал заказ и едет к вам";
             case DELIVERED -> "Курьер передал заказ. Приятного аппетита";
             case CANCELLED -> "Заказ отменён";
@@ -255,14 +358,5 @@ public class OrderTrackingService {
             steps.add(new TrackingStepDto(labels[i], state));
         }
         return steps;
-    }
-
-    private static double unit(long seed) {
-        long mixed = seed * 1103515245L + 12345L;
-        return ((mixed >>> 16) & 0x7fff) / 32767.0;
-    }
-
-    private static double round(double value) {
-        return Math.round(value * 10) / 10.0;
     }
 }

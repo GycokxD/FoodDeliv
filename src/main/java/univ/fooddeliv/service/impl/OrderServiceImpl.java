@@ -26,6 +26,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
     private final OrderItemService orderItemService;
     private final PaymentService paymentService;
+    private final OrderTrackingService orderTrackingService;
 
 
     @Override
@@ -103,6 +104,7 @@ public class OrderServiceImpl implements OrderService {
         order.setStatus(OrderStatus.CANCELLED);
         order.setLiveTracking(false);
         paymentService.refundOnline(order);
+        orderTrackingService.publish(order.getId());
         return true;
     }
 

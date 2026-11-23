@@ -22,12 +22,16 @@ public class OrderTrackingDto {
     private final String paymentBadge;
     private final String courierName;
     private final String restaurantName;
-    private final double restaurantX;
-    private final double restaurantY;
-    private final double destinationX;
-    private final double destinationY;
-    private final double courierX;
-    private final double courierY;
+    private final Double restaurantLat;
+    private final Double restaurantLng;
+    private final Double destinationLat;
+    private final Double destinationLng;
+    private final Double courierLat;
+    private final Double courierLng;
+    private final List<double[]> route;
+    private final double centerLat;
+    private final double centerLng;
     private final boolean showMap;
+    private final boolean waitingForCourier;
     private final List<TrackingStepDto> steps;
 }

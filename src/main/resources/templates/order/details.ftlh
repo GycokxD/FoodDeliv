@@ -1,4 +1,5 @@
 <#import "../layout.ftlh" as layout>
+<#import "../maps.ftlh" as maps>
 <@layout.layout title="Заказ #${order.id}">
 <style>
     .track-steps { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
@@ -11,31 +12,12 @@
     .track-step.is-done .track-step__dot { background: #2ecc71; }
     .track-step.is-current { color: #ff6b6b; }
     .track-step.is-current .track-step__dot { background: #ff6b6b; box-shadow: 0 0 0 4px rgba(255, 107, 107, 0.2); }
-    .track-map {
-        position: relative; height: 280px; border-radius: 16px; overflow: hidden;
-        background: linear-gradient(160deg, #e7f6ef 0%, #d7ecff 55%, #fff4e8 100%);
-        border: 1px solid rgba(47, 53, 66, 0.08);
-    }
-    .track-map__routes { position: absolute; inset: 0; width: 100%; height: 100%; }
-    .track-map__routes line { stroke: #ff6b6b; stroke-width: 1.2; stroke-dasharray: 2 1.4; }
-    .track-pin {
-        position: absolute; transform: translate(-50%, -100%); text-align: center; width: 90px;
-    }
-    .track-pin i {
-        display: inline-flex; width: 36px; height: 36px; align-items: center; justify-content: center;
-        border-radius: 50% 50% 50% 4px; color: #fff; font-size: 1rem;
-        box-shadow: 0 6px 14px rgba(47, 53, 66, 0.2);
-    }
-    .track-pin span { display: block; margin-top: 0.2rem; font-size: 0.75rem; font-weight: 700; color: #2f3542; }
-    .track-pin--restaurant i { background: #2f3542; }
-    .track-pin--home i { background: #ffa502; }
-    .track-pin--courier { width: 110px; transition: left 1.2s linear, top 1.2s linear; z-index: 2; }
-    .track-pin--courier i { background: #ff6b6b; border-radius: 50%; }
     .track-progress { height: 8px; background: #f1f2f6; border-radius: 99px; overflow: hidden; }
     .track-progress > div { height: 100%; width: 0; background: linear-gradient(90deg, #ff6b6b, #ffa502); transition: width 1s linear; }
+    #trackMap.geo-map { height: 320px; }
     @media (max-width: 576px) {
         .track-step { font-size: 0.72rem; }
-        .track-map { height: 230px; }
+        #trackMap.geo-map { height: 250px; }
     }
 </style>
 <div class="container mt-5" id="orderTrack"
@@ -93,26 +75,14 @@
             </div>
             <div class="track-progress mb-3"><div id="trackProgress" style="width: ${tracking.progress}%"></div></div>
             <#if tracking.showMap>
-                <div class="track-map" id="trackMap">
-                    <svg class="track-map__routes" viewBox="0 0 100 100" preserveAspectRatio="none">
-                        <line id="routeLine"
-                              x1="${tracking.restaurantX}" y1="${tracking.restaurantY}"
-                              x2="${tracking.destinationX}" y2="${tracking.destinationY}"></line>
-                    </svg>
-                    <div class="track-pin track-pin--restaurant" style="left: ${tracking.restaurantX}%; top: ${tracking.restaurantY}%;">
-                        <i class="bi bi-shop"></i>
-                        <span>${tracking.restaurantName}</span>
-                    </div>
-                    <div class="track-pin track-pin--home" style="left: ${tracking.destinationX}%; top: ${tracking.destinationY}%;">
-                        <i class="bi bi-house-door"></i>
-                        <span>Вы</span>
-                    </div>
-                    <div id="courierPin" class="track-pin track-pin--courier" style="left: ${tracking.courierX}%; top: ${tracking.courierY}%;">
-                        <i class="bi bi-bicycle"></i>
-                        <span id="courierPinLabel"><#if tracking.status == "ON_THE_WAY">Едет<#elseif tracking.status == "DELIVERED">На месте<#else>Ждёт заказ</#if></span>
-                    </div>
-                </div>
-                <p class="text-muted small mt-2 mb-0">Маршрут учебный: ресторан и адрес поставлены на схему города, это не настоящая геолокация.</p>
+                <div id="trackMap" class="geo-map"></div>
+                <p id="mapHint" class="text-muted small mt-2 mb-0">
+                    <#if tracking.waitingForCourier>
+                        Карта OpenStreetMap. Курьер ещё не взял заказ.
+                    <#else>
+                        Карта OpenStreetMap: ресторан, вы и курьер по реальному маршруту.
+                    </#if>
+                </p>
             </#if>
         </div>
     </div>
@@ -194,10 +164,13 @@
         </div>
     </div>
 </div>
+<#if tracking.showMap>
+    <@maps.assets/>
+</#if>
 <script>
     (function () {
         var root = document.getElementById("orderTrack");
-        if (!root || root.dataset.live !== "true") {
+        if (!root) {
             return;
         }
         var orderId = root.dataset.orderId;
@@ -205,11 +178,97 @@
         var message = document.getElementById("trackMessage");
         var eta = document.getElementById("trackEta");
         var progress = document.getElementById("trackProgress");
-        var pin = document.getElementById("courierPin");
-        var pinLabel = document.getElementById("courierPinLabel");
+        var courierName = document.getElementById("courierName");
         var payment = document.getElementById("paymentState");
         var cancelForm = document.getElementById("cancelOrderForm");
+        var mapHint = document.getElementById("mapHint");
         var steps = document.querySelectorAll("#trackSteps .track-step");
+        var mapEl = document.getElementById("trackMap");
+        var map = null;
+        var routeLine = null;
+        var restaurantMarker = null;
+        var destinationMarker = null;
+        var courierMarker = null;
+        var finished = root.dataset.live !== "true";
+
+        function point(lat, lng) {
+            if (lat == null || lng == null || isNaN(lat) || isNaN(lng)) {
+                return null;
+            }
+            return [lat, lng];
+        }
+
+        function fit(bounds) {
+            if (!map || !bounds.length) {
+                return;
+            }
+            if (bounds.length === 1) {
+                map.setView(bounds[0], 15);
+            } else {
+                map.fitBounds(bounds, { padding: [36, 36], maxZoom: 16 });
+            }
+        }
+
+        function ensureMap(data) {
+            if (!mapEl || !window.L || !window.EduMap) {
+                return;
+            }
+            if (!map) {
+                map = EduMap.create(mapEl, {
+                    lat: data.centerLat || 42.8746,
+                    lng: data.centerLng || 74.6122
+                }, 13);
+            }
+            var bounds = [];
+            if (data.route && data.route.length > 1) {
+                if (!routeLine) {
+                    routeLine = L.polyline(data.route, { color: "#e23d3d", weight: 5, opacity: 0.75 }).addTo(map);
+                } else {
+                    routeLine.setLatLngs(data.route);
+                }
+                bounds = bounds.concat(data.route);
+            }
+            var restaurant = point(data.restaurantLat, data.restaurantLng);
+            if (restaurant) {
+                if (!restaurantMarker) {
+                    restaurantMarker = L.marker(restaurant, { icon: EduMap.icon("restaurant") })
+                        .addTo(map)
+                        .bindTooltip(data.restaurantName || "Ресторан");
+                } else {
+                    restaurantMarker.setLatLng(restaurant);
+                }
+                bounds.push(restaurant);
+            }
+            var destination = point(data.destinationLat, data.destinationLng);
+            if (destination) {
+                if (!destinationMarker) {
+                    destinationMarker = L.marker(destination, { icon: EduMap.icon("home") })
+                        .addTo(map)
+                        .bindTooltip("Вы");
+                } else {
+                    destinationMarker.setLatLng(destination);
+                }
+                bounds.push(destination);
+            }
+            var courier = point(data.courierLat, data.courierLng);
+            if (courier) {
+                if (!courierMarker) {
+                    courierMarker = L.marker(courier, { icon: EduMap.icon("courier"), zIndexOffset: 1000 })
+                        .addTo(map);
+                } else {
+                    courierMarker.setLatLng(courier);
+                }
+                var label = data.status === "ON_THE_WAY" ? "Едет" : (data.status === "DELIVERED" ? "На месте" : "Ждёт заказ");
+                courierMarker.bindTooltip(label);
+                bounds.push(courier);
+            }
+            if (!map._fittedOnce && bounds.length) {
+                fit(bounds);
+                map._fittedOnce = true;
+            } else if (courierMarker && data.status === "ON_THE_WAY") {
+                map.panTo(courierMarker.getLatLng(), { animate: true, duration: 0.8 });
+            }
+        }
 
         function apply(data) {
             if (badge) {
@@ -225,12 +284,8 @@
             if (progress) {
                 progress.style.width = data.progress + "%";
             }
-            if (pin) {
-                pin.style.left = data.courierX + "%";
-                pin.style.top = data.courierY + "%";
-            }
-            if (pinLabel) {
-                pinLabel.textContent = data.status === "ON_THE_WAY" ? "Едет" : (data.status === "DELIVERED" ? "На месте" : "Ждёт заказ");
+            if (courierName) {
+                courierName.textContent = data.courierName;
             }
             if (payment) {
                 var payBadge = data.paymentBadge || (data.paid ? "success" : "secondary");
@@ -240,6 +295,11 @@
             if (cancelForm) {
                 cancelForm.style.display = data.canCancel ? "inline" : "none";
             }
+            if (mapHint) {
+                mapHint.textContent = data.waitingForCourier
+                    ? "Карта OpenStreetMap. Курьер ещё не взял заказ."
+                    : "Карта OpenStreetMap: ресторан, вы и курьер по реальному маршруту.";
+            }
             if (data.steps) {
                 data.steps.forEach(function (step, index) {
                     if (steps[index]) {
@@ -247,22 +307,110 @@
                     }
                 });
             }
-            return data.finished || data.status === "CANCELLED";
+            if (data.showMap) {
+                ensureMap(data);
+            }
+            finished = data.finished || data.status === "CANCELLED" || !data.live;
+            return finished;
         }
 
-        function tick() {
-            fetch("/orders/" + orderId + "/tracking")
-                .then(function (response) { return response.json(); })
-                .then(function (data) {
-                    if (!apply(data)) {
-                        setTimeout(tick, 3000);
-                    }
-                })
-                .catch(function () {
-                    setTimeout(tick, 5000);
-                });
+        var initial = {
+            status: "${tracking.status}",
+            statusLabel: "${tracking.statusLabel}",
+            badge: "${tracking.badge}",
+            message: "${tracking.message?js_string}",
+            eta: "${tracking.eta?js_string}",
+            progress: ${tracking.progress},
+            live: ${tracking.live?c},
+            finished: ${tracking.finished?c},
+            canCancel: ${tracking.canCancel?c},
+            paid: ${tracking.paid?c},
+            paymentState: "${tracking.paymentState?js_string}",
+            paymentBadge: "${tracking.paymentBadge!'secondary'}",
+            courierName: "${tracking.courierName?js_string}",
+            restaurantName: "${tracking.restaurantName?js_string}",
+            restaurantLat: <#if tracking.restaurantLat??>${tracking.restaurantLat?c}<#else>null</#if>,
+            restaurantLng: <#if tracking.restaurantLng??>${tracking.restaurantLng?c}<#else>null</#if>,
+            destinationLat: <#if tracking.destinationLat??>${tracking.destinationLat?c}<#else>null</#if>,
+            destinationLng: <#if tracking.destinationLng??>${tracking.destinationLng?c}<#else>null</#if>,
+            courierLat: <#if tracking.courierLat??>${tracking.courierLat?c}<#else>null</#if>,
+            courierLng: <#if tracking.courierLng??>${tracking.courierLng?c}<#else>null</#if>,
+            route: [
+                <#if tracking.route??>
+                    <#list tracking.route as p>[${p[0]?c}, ${p[1]?c}]<#if p_has_next>,</#if></#list>
+                </#if>
+            ],
+            centerLat: ${tracking.centerLat?c},
+            centerLng: ${tracking.centerLng?c},
+            showMap: ${tracking.showMap?c},
+            waitingForCourier: ${tracking.waitingForCourier?c},
+            steps: [
+                <#list tracking.steps as step>
+                { label: "${step.label?js_string}", state: "${step.state}" }<#if step_has_next>,</#if>
+                </#list>
+            ]
+        };
+        apply(initial);
+
+        if (finished) {
+            return;
         }
-        setTimeout(tick, 3000);
+
+        var source = null;
+        var pollTimer = null;
+
+        function stopPoll() {
+            if (pollTimer) {
+                clearTimeout(pollTimer);
+                pollTimer = null;
+            }
+        }
+
+        function poll() {
+            stopPoll();
+            pollTimer = setTimeout(function () {
+                fetch("/orders/" + orderId + "/tracking")
+                    .then(function (response) { return response.json(); })
+                    .then(function (data) {
+                        if (!apply(data)) {
+                            poll();
+                        }
+                    })
+                    .catch(function () {
+                        poll();
+                    });
+            }, 3000);
+        }
+
+        function connectSse() {
+            if (!window.EventSource) {
+                poll();
+                return;
+            }
+            source = new EventSource("/orders/" + orderId + "/stream");
+            source.addEventListener("tracking", function (event) {
+                try {
+                    var data = JSON.parse(event.data);
+                    if (apply(data) && source) {
+                        source.close();
+                        source = null;
+                    }
+                } catch (e) {
+                    // ignore malformed chunk
+                }
+            });
+            source.onerror = function () {
+                if (source) {
+                    source.close();
+                    source = null;
+                }
+                if (!finished) {
+                    poll();
+                }
+            };
+        }
+
+        connectSse();
     })();
 </script>
 </@layout.layout>

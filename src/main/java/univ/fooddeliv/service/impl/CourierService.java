@@ -29,6 +29,7 @@ public class CourierService {
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
     private final PaymentService paymentService;
+    private final OrderTrackingService orderTrackingService;
 
     @Transactional(readOnly = true)
     public List<Order> availableOrders() {
@@ -65,7 +66,9 @@ public class CourierService {
             throw new IllegalArgumentException("Заказ уже нельзя взять");
         }
         order.setCourier(courier);
-        return orderRepository.save(order);
+        Order saved = orderRepository.save(order);
+        orderTrackingService.publish(saved.getId());
+        return saved;
     }
 
     @Transactional
@@ -78,7 +81,9 @@ public class CourierService {
             throw new IllegalArgumentException("Заказ уже в другом статусе: " + order.getStatus().getLabel());
         }
         order.setStatus(OrderStatus.ON_THE_WAY);
-        return orderRepository.save(order);
+        Order saved = orderRepository.save(order);
+        orderTrackingService.publish(saved.getId());
+        return saved;
     }
 
     @Transactional
@@ -97,7 +102,9 @@ public class CourierService {
         order.setStatus(OrderStatus.DELIVERED);
         paymentService.captureOnDelivery(order);
         paymentService.assignReceipt(order);
-        return orderRepository.save(order);
+        Order saved = orderRepository.save(order);
+        orderTrackingService.publish(saved.getId());
+        return saved;
     }
 
     /**
@@ -121,6 +128,7 @@ public class CourierService {
         order.setCourierLongitude(lng);
         order.setCourierLocatedAt(now);
         orderRepository.save(order);
+        orderTrackingService.publish(order.getId());
         return true;
     }
 
