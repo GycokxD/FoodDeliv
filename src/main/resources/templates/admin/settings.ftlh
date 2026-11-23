@@ -30,6 +30,17 @@
                     <input class="form-control" id="supportPhone" name="supportPhone" value="${settings.supportPhone!''}">
                 </div>
                 <div class="col-12">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" role="switch" id="demoCouriers" name="demoCouriers" value="true"
+                               <#if settings.demoCouriers!true>checked</#if>>
+                        <label class="form-check-label" for="demoCouriers">Демо-курьеры</label>
+                    </div>
+                    <div class="form-text">
+                        Включено: заказ едет сам по маршруту, удобно для защиты.
+                        Выключено: заказ ждёт, пока его возьмёт курьер в кабинете <code>/courier</code>.
+                    </div>
+                </div>
+                <div class="col-12">
                     <button class="btn btn-primary" type="submit">Сохранить</button>
                 </div>
             </form>

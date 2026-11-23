@@ -19,6 +19,7 @@
                 <tr>
                     <th>Заведение</th>
                     <th>Адрес</th>
+                    <th>На карте</th>
                     <th class="text-end">Действия</th>
                 </tr>
                 </thead>
@@ -32,6 +33,14 @@
                             </div>
                         </td>
                         <td class="clip">${restaurant.address}</td>
+                        <td>
+                            <#if restaurant.latitude?? && restaurant.longitude??>
+                                <span class="badge bg-success">Есть</span>
+                                <div class="sub">${restaurant.latitude?string["0.0000"]}, ${restaurant.longitude?string["0.0000"]}</div>
+                            <#else>
+                                <span class="badge bg-warning text-dark">Нет</span>
+                            </#if>
+                        </td>
                         <td>
                             <div class="row-actions">
                                 <a class="btn btn-sm btn-outline-primary" href="/admin/restaurants/${restaurant.id}/edit">Изменить</a>

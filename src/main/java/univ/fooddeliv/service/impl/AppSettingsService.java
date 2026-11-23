@@ -19,7 +19,12 @@ public class AppSettingsService {
     }
 
     @Transactional
-    public AppSettings update(int acceptedSeconds, int cookingSeconds, int deliverySeconds, String supportPhone, String city) {
+    public AppSettings update(int acceptedSeconds,
+                              int cookingSeconds,
+                              int deliverySeconds,
+                              String supportPhone,
+                              String city,
+                              boolean demoCouriers) {
         if (acceptedSeconds < 5 || acceptedSeconds > 1800
                 || cookingSeconds < 5 || cookingSeconds > 1800
                 || deliverySeconds < 5 || deliverySeconds > 1800) {
@@ -32,6 +37,7 @@ public class AppSettingsService {
         settings.setDeliverySeconds(deliverySeconds);
         settings.setSupportPhone(blankToNull(supportPhone));
         settings.setCity(blankToNull(city));
+        settings.setDemoCouriers(demoCouriers);
         return appSettingsRepository.save(settings);
     }
 

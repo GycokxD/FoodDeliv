@@ -18,6 +18,7 @@
                     <th>Дата</th>
                     <th>Клиент</th>
                     <th>Адрес</th>
+                    <th>Курьер</th>
                     <th>Оплата</th>
                     <th class="text-end">Сумма</th>
                     <th class="text-end">Статус</th>
@@ -35,6 +36,18 @@
                             </div>
                         </td>
                         <td class="clip">${order.address!"—"}</td>
+                        <td>
+                            <#if order.courier??>
+                                <div class="stack">
+                                    <span>${order.courier.name!"—"}</span>
+                                    <span class="sub">${order.courier.email!""}</span>
+                                </div>
+                            <#elseif order.liveTracking!false>
+                                <span class="text-muted">Демо</span>
+                            <#else>
+                                <span class="text-muted">—</span>
+                            </#if>
+                        </td>
                         <td>
                             <div class="stack">
                                 <span><#if order.paymentMethod??>${order.paymentMethod.label}<#else>—</#if></span>

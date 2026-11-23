@@ -212,9 +212,10 @@ public class AdminController {
                                  @RequestParam int deliverySeconds,
                                  @RequestParam(required = false) String supportPhone,
                                  @RequestParam(required = false) String city,
+                                 @RequestParam(defaultValue = "false") boolean demoCouriers,
                                  RedirectAttributes redirectAttributes) {
         return update(redirectAttributes, "/admin/settings",
-                () -> appSettingsService.update(acceptedSeconds, cookingSeconds, deliverySeconds, supportPhone, city),
+                () -> appSettingsService.update(acceptedSeconds, cookingSeconds, deliverySeconds, supportPhone, city, demoCouriers),
                 "Настройки сохранены");
     }
 

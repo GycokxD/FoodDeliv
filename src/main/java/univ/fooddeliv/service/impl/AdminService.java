@@ -19,9 +19,11 @@ import univ.fooddeliv.repository.RestaurantRepository;
 import univ.fooddeliv.repository.RoleRepository;
 import univ.fooddeliv.repository.UserRepository;
 import univ.fooddeliv.utils.FileUtil;
+import univ.fooddeliv.utils.GeoUtil;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -34,6 +36,9 @@ public class AdminService {
     private final RoleRepository roleRepository;
     private final FileUtil fileUtil;
     private final PaymentService paymentService;
+    private final GeocodingService geocodingService;
+    private final AppSettingsService appSettingsService;
+    private final OrderTrackingService orderTrackingService;
 
     @Transactional(readOnly = true)
     public List<Order> orders() {
@@ -54,6 +59,7 @@ public class AdminService {
             paymentService.refundOnline(order);
         }
         orderRepository.save(order);
+        orderTrackingService.publish(order.getId());
     }
 
     @Transactional(readOnly = true)
@@ -72,10 +78,36 @@ public class AdminService {
         String cleanName = required(name, "Укажите название ресторана");
         String cleanAddress = required(address, "Укажите адрес ресторана");
         Restaurant restaurant = id == null ? new Restaurant() : restaurant(id);
+        String previousAddress = restaurant.getAddress();
         restaurant.setName(cleanName);
         restaurant.setAddress(cleanAddress);
         restaurant.setImage(resolveImage(restaurant.getImage(), image, file));
+        applyGeo(restaurant, previousAddress);
         return restaurantRepository.save(restaurant);
+    }
+
+    private void applyGeo(Restaurant restaurant, String previousAddress) {
+        boolean addressChanged = previousAddress == null
+                || !previousAddress.trim().equalsIgnoreCase(restaurant.getAddress().trim());
+        boolean missing = !GeoUtil.isValid(restaurant.getLatitude(), restaurant.getLongitude());
+        if (!addressChanged && !missing) {
+            return;
+        }
+        String query = restaurant.getAddress();
+        String city = appSettingsService.get().getCity();
+        if (city != null && !city.isBlank()
+                && !query.toLowerCase(Locale.ROOT).contains(city.toLowerCase(Locale.ROOT))) {
+            query = query + ", " + city.trim();
+        }
+        geocodingService.geocode(query).ifPresentOrElse(hit -> {
+            restaurant.setLatitude(hit.lat());
+            restaurant.setLongitude(hit.lng());
+        }, () -> {
+            if (addressChanged) {
+                restaurant.setLatitude(null);
+                restaurant.setLongitude(null);
+            }
+        });
     }
 
     @Transactional

@@ -15,6 +15,14 @@
                 <div class="mb-3">
                     <label class="form-label" for="address">Адрес</label>
                     <input class="form-control" id="address" name="address" required value="${restaurant.address!''}">
+                    <div class="form-text">
+                        При сохранении адрес ищется на OpenStreetMap, и на карте доставки появляется точка ресторана.
+                        <#if restaurant.latitude?? && restaurant.longitude??>
+                            Сейчас: ${restaurant.latitude?string["0.000000"]}, ${restaurant.longitude?string["0.000000"]}.
+                        <#else>
+                            Координат пока нет.
+                        </#if>
+                    </div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label" for="file">Загрузить фото</label>
