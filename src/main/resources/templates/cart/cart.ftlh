@@ -21,7 +21,7 @@
     <#if dishes?has_content>
         <div class="card mb-4 shadow-sm table-card">
             <div class="table-responsive">
-                <table class="table align-middle mb-0 wrap-table" style="min-width: 720px">
+                <table class="table align-middle mb-0 wrap-table">
                     <colgroup>
                         <col style="width: 36%">
                         <col style="width: 16%">

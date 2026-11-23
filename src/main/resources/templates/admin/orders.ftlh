@@ -28,7 +28,7 @@
                 <#list orders as order>
                     <tr>
                         <td class="num"><a href="/orders/${order.id}">#${order.id}</a></td>
-                        <td class="text-nowrap"><@admin.date order.createdAt/></td>
+                        <td><@admin.date order.createdAt/></td>
                         <td>
                             <div class="stack">
                                 <span>${(order.user.name)!"—"}</span>

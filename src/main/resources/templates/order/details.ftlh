@@ -122,7 +122,7 @@
             <h4 class="mb-3">Состав заказа</h4>
             <#if order.items?has_content>
                 <div class="table-responsive">
-                <table class="table align-middle mb-0 wrap-table" style="min-width: 560px">
+                <table class="table align-middle mb-0 wrap-table">
                     <colgroup>
                         <col style="width: 60%">
                         <col style="width: 18%">

@@ -54,7 +54,7 @@
                                 </form>
                             </div>
                         </td>
-                        <td class="text-nowrap"><@admin.date account.createdAt/></td>
+                        <td><@admin.date account.createdAt/></td>
                         <td>
                             <form action="/admin/users/${account.id}/delete" method="post" class="row-actions" onsubmit="return confirm('Удалить пользователя и все его заказы?');">
                                 <#if _csrf??><input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/></#if>
