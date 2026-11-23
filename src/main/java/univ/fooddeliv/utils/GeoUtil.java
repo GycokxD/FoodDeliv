@@ -32,9 +32,6 @@ public final class GeoUtil {
         return total;
     }
 
-    /**
-     * Точка на ломаной, пройденной на долю {@code fraction} (0..1) от её длины.
-     */
     public static double[] pointAlong(List<double[]> points, double fraction) {
         if (points.isEmpty()) {
             throw new IllegalArgumentException("Маршрут пуст");
